@@ -1,0 +1,13 @@
+# Virtual environment
+venv/
+
+# Bytecode and cache
+__pycache__/
+*.py[cod]
+*.log
+
+# Data
+data/*.csv
+
+# OS files
+.DS_Store

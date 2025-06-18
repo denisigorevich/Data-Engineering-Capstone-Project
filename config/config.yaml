@@ -1,0 +1,50 @@
+# Vehicle Data Cleaning Configuration
+# This file shows example configurations for different use cases
+
+# Basic file processing (minimal configuration)
+input_file: vehicles.csv
+output_file: vehicles_cleaned.csv
+chunk_size: 10000
+filter_column: cylinders
+
+# Cloud Storage Configuration
+gcs_bucket_path: gs://dt-denis-sandbox-dev-data/processed/vehicles_cleaned.csv
+upload_to_gcs: false  # Set to true to enable GCS upload
+
+# BigQuery Configuration (optional)
+# Uncomment and configure to enable BigQuery loading
+# bq_project: your-project-id
+# bq_dataset: your_dataset
+# bq_table: vehicles_cleaned
+# load_to_bigquery: false
+
+# Processing Options
+overwrite_output: true  # Makes the script idempotent
+dry_run: false         # Set to true to preview what would be done
+show_progress: true    # Show progress bar during chunk processing
+
+# Logging Configuration
+log_level: INFO        # DEBUG, INFO, WARNING, ERROR
+log_file: null         # Optional: specify a log file path
+
+# Example configurations for different scenarios:
+
+# Scenario 1: Local processing only
+# Use defaults above
+
+# Scenario 2: Process and upload to GCS
+# upload_to_gcs: true
+
+# Scenario 3: Full pipeline (local + GCS + BigQuery)
+# upload_to_gcs: true
+# load_to_bigquery: true
+# bq_project: my-gcp-project
+# bq_dataset: vehicle_data
+# bq_table: cleaned_vehicles
+
+# Scenario 4: Different input/output files
+# input_file: data/raw_vehicles.csv
+# output_file: data/processed/clean_vehicles.csv
+
+# Scenario 5: Different filtering column
+# filter_column: engine_size 
