@@ -1,0 +1,6 @@
+# Level-1 ownership; refine later if needed
+*                    @datatonic/data-eng-team
+src/data_quality/   @datatonic/data-eng-team
+src/data_cleaning/  @datatonic/data-eng-team
+src/db_testing/     @datatonic/data-eng-team
+data_ingestion/     @datatonic/data-eng-team 

@@ -54,7 +54,7 @@ def retry_on_failure(max_attempts: int = 3, base_delay: float = 1.0, max_delay: 
                     
                     # Calculate delay with exponential backoff and jitter
                     delay = min(base_delay * (2 ** attempt), max_delay)
-                    jitter = random.uniform(0.1, 0.3) * delay
+                    jitter = random.uniform(0.1, 0.3) * delay  # nosec B311
                     total_delay = delay + jitter
                     
                     logger = logging.getLogger(__name__)
@@ -454,7 +454,7 @@ class VehicleDataCleaner:
             
             # Get table info
             table = client.get_table(table_id)
-            self.logger.info(f"BigQuery load completed successfully!")
+            self.logger.info("BigQuery load completed successfully!")
             self.logger.info(f"Loaded {table.num_rows} rows to {table_id}")
             
             return True

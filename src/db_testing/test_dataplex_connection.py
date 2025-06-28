@@ -23,7 +23,7 @@ def test_authentication():
     """Test Google Cloud authentication"""
     try:
         credentials, project = default()
-        logger.info(f"✅ Authentication successful")
+        logger.info("✅ Authentication successful")
         logger.info(f"   Default project: {project}")
         return True
     except DefaultCredentialsError as e:
@@ -44,7 +44,7 @@ def test_dataplex_api():
         response = client.list_data_scans(request=request)
         
         scan_count = len(list(response))
-        logger.info(f"✅ Dataplex API accessible")
+        logger.info("✅ Dataplex API accessible")
         logger.info(f"   Found {scan_count} existing data scans in {REGION}")
         return True
         
@@ -64,7 +64,7 @@ def test_bigquery_access():
         
         # Test basic BigQuery access
         datasets = list(client.list_datasets())
-        logger.info(f"✅ BigQuery access verified")
+        logger.info("✅ BigQuery access verified")
         logger.info(f"   Found {len(datasets)} datasets in project")
         
         return True
