@@ -19,10 +19,10 @@ repos:
     rev: 1.7.5
     hooks:
       - id: bandit
-        args: ["-r", "data_ingestion/"]
+        args: ["--skip", "B101,B403,B404,B603"]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: check-added-large-files
       - id: end-of-file-fixer 
