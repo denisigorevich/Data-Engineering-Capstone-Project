@@ -1,0 +1,36 @@
+# Data Enrichment Pipeline Configuration
+
+# API Configuration
+api:
+  max_requests_per_second: 5.0  # Rate limit to respect NHTSA API constraints
+  timeout: 30                   # Request timeout in seconds
+  max_retries: 3               # Maximum retry attempts for failed requests
+
+# Processing Configuration
+processing:
+  batch_size: 100              # Number of VINs to process in each batch
+  use_threading: true          # Enable concurrent processing (recommended)
+  max_workers: 5               # Maximum number of concurrent threads
+  skip_existing_cylinders: true # Skip VINs that already have cylinder data
+
+# Output Configuration
+output:
+  format: "csv"                # Output format: csv, parquet
+  include_api_metadata: true   # Include additional API fields (make, model, year, etc.)
+
+# Logging Configuration
+logging:
+  level: "INFO"                # Log level: DEBUG, INFO, WARNING, ERROR
+  file: null                   # Optional log file path (null for console only)
+
+# File Paths (can be overridden via command line)
+input_path: "data/vehicles_cleaned.csv"
+output_path: "data/vehicles_enriched.csv"
+
+# BigQuery Configuration (optional)
+bigquery:
+  enabled: false
+  project_id: "your-project-id"
+  dataset: "vehicle_data"
+  table: "vehicles_enriched"
+  write_disposition: "WRITE_TRUNCATE"  # WRITE_TRUNCATE, WRITE_APPEND, WRITE_EMPTY 
