@@ -27,11 +27,10 @@ import argparse
 import yaml
 import json
 import random
-from typing import Optional, Dict, Any, List, Tuple
-from pathlib import Path
+from typing import Optional, Dict, Any, List
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from urllib.parse import quote
 import re
 
@@ -44,8 +43,8 @@ except ImportError:
 
 # Optional pyarrow support for Parquet
 try:
-    import pyarrow
-    PYARROW_AVAILABLE = True
+    import importlib.util
+    PYARROW_AVAILABLE = importlib.util.find_spec("pyarrow") is not None
 except ImportError:
     PYARROW_AVAILABLE = False
 
@@ -141,17 +140,54 @@ def validate_vin(vin: str) -> bool:
     return True
 
 
-def setup_logging(log_level: str = "INFO", log_file: Optional[str] = None) -> logging.Logger:
-    """Set up logging configuration."""
-    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+def setup_logging(log_level: str = "INFO", log_file: Optional[str] = None, structured: bool = False) -> logging.Logger:
+    """Set up logging configuration with optional structured JSON format."""
+    if structured:
+        # Structured JSON logging for production
+        import json
+        
+        class JSONFormatter(logging.Formatter):
+            def format(self, record):
+                log_data = {
+                    'timestamp': self.formatTime(record, self.datefmt),
+                    'level': record.levelname,
+                    'logger': record.name,
+                    'message': record.getMessage(),
+                    'module': record.module,
+                    'function': record.funcName,
+                    'line': record.lineno
+                }
+                
+                # Add extra fields if present
+                if hasattr(record, 'vin'):
+                    log_data['vin'] = record.vin
+                if hasattr(record, 'response_time'):
+                    log_data['response_time'] = record.response_time
+                if hasattr(record, 'batch_id'):
+                    log_data['batch_id'] = record.batch_id
+                if hasattr(record, 'success_count'):
+                    log_data['success_count'] = record.success_count
+                if hasattr(record, 'error_count'):
+                    log_data['error_count'] = record.error_count
+                
+                return json.dumps(log_data)
+        
+        formatter = JSONFormatter()
+    else:
+        # Standard logging format
+        log_format = '%(asctime)s %(levelname)s [%(name)s:%(funcName)s:%(lineno)d] %(message)s'
+        formatter = logging.Formatter(log_format, datefmt='%Y-%m-%d %H:%M:%S')
     
     handlers = [logging.StreamHandler(sys.stdout)]
     if log_file:
         handlers.append(logging.FileHandler(log_file))
     
+    # Configure handlers with formatter
+    for handler in handlers:
+        handler.setFormatter(formatter)
+    
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
-        format=log_format,
         handlers=handlers,
         force=True  # Override any existing configuration
     )
@@ -341,10 +377,13 @@ class VehicleDataEnricher:
         
         if self.skip_existing_cylinders and 'cylinders' in df.columns:
             # Skip rows that already have cylinder data
+            # Convert to string first to handle mixed types, then check for empty/null
+            cylinders_str = df_valid_vins['cylinders'].astype(str)
             df_needs_enrichment = df_valid_vins[
                 df_valid_vins['cylinders'].isna() | 
-                (df_valid_vins['cylinders'].str.strip() == '') |
-                (df_valid_vins['cylinders'] == '')
+                (cylinders_str.str.strip() == '') |
+                (cylinders_str == 'nan') |
+                (cylinders_str == 'None')
             ]
             skipped_count = len(df_valid_vins) - len(df_needs_enrichment)
             self.logger.info(f"Skipping {skipped_count:,} rows that already have cylinder data")
@@ -367,9 +406,11 @@ class VehicleDataEnricher:
             results.append(result)
             
             if result.error_message:
-                self.logger.warning(f"Failed to enrich VIN {vin}: {result.error_message}")
+                self.logger.warning(f"Failed to enrich VIN {vin}: {result.error_message}", 
+                                   extra={'vin': vin, 'error': result.error_message, 'response_time': result.api_response_time})
             elif result.cylinders is not None:
-                self.logger.debug(f"Successfully enriched VIN {vin}: {result.cylinders} cylinders")
+                self.logger.debug(f"Successfully enriched VIN {vin}: {result.cylinders} cylinders",
+                                extra={'vin': vin, 'cylinders': result.cylinders, 'response_time': result.api_response_time})
         
         return results
     
@@ -390,9 +431,11 @@ class VehicleDataEnricher:
                 results.append(result)
                 
                 if result.error_message:
-                    self.logger.warning(f"Failed to enrich VIN {result.vin}: {result.error_message}")
+                    self.logger.warning(f"Failed to enrich VIN {result.vin}: {result.error_message}",
+                                      extra={'vin': result.vin, 'error': result.error_message, 'response_time': result.api_response_time})
                 elif result.cylinders is not None:
-                    self.logger.debug(f"Successfully enriched VIN {result.vin}: {result.cylinders} cylinders")
+                    self.logger.debug(f"Successfully enriched VIN {result.vin}: {result.cylinders} cylinders",
+                                    extra={'vin': result.vin, 'cylinders': result.cylinders, 'response_time': result.api_response_time})
         
         return results
     
@@ -441,7 +484,9 @@ class VehicleDataEnricher:
             avg_response_time = sum(r.api_response_time for r in batch_results) / len(batch_results)
             
             self.logger.info(f"Batch {batch_num + 1} complete: {successful} successful, {failed} failed, "
-                           f"avg response time: {avg_response_time:.2f}s")
+                           f"avg response time: {avg_response_time:.2f}s", 
+                           extra={'batch_id': batch_num + 1, 'success_count': successful, 'error_count': failed, 
+                                'avg_response_time': avg_response_time, 'batch_size': len(batch_vins)})
         
         if progress_bar:
             progress_bar.close()
@@ -639,6 +684,7 @@ Examples:
     parser.add_argument('--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'], 
                        default='INFO', help='Logging level')
     parser.add_argument('--log-file', type=str, help='Log file path')
+    parser.add_argument('--structured-logs', action='store_true', help='Use structured JSON logging')
     parser.add_argument('--no-threading', action='store_true', help='Disable threading')
     parser.add_argument('--include-all-cylinders', action='store_true', 
                        help='Enrich all VINs, even those with existing cylinder data')
@@ -666,11 +712,14 @@ Examples:
         config['logging']['level'] = args.log_level
     if args.log_file:
         config['logging']['file'] = args.log_file
+    if args.structured_logs:
+        config['logging']['structured'] = True
     
     # Set up logging
     logger = setup_logging(
         log_level=config['logging']['level'],
-        log_file=config['logging'].get('file')
+        log_file=config['logging'].get('file'),
+        structured=config['logging'].get('structured', False)
     )
     
     # Validate required arguments
@@ -690,7 +739,7 @@ Examples:
     try:
         # Initialize enricher and process data
         enricher = VehicleDataEnricher(config)
-        results = enricher.process(input_path, output_path)
+        enricher.process(input_path, output_path)
         
         logger.info("Enrichment pipeline completed successfully!")
         return 0

@@ -14,7 +14,6 @@ Usage:
 import argparse
 import logging
 import pandas as pd
-from typing import List
 
 from enrich_with_cylinders import (
     NHTSAEnrichmentClient,

@@ -69,7 +69,7 @@ class BatchEnrichmentManager:
         }
         
         hash_input = f"{input_path}:{json.dumps(config_subset, sort_keys=True)}"
-        return hashlib.md5(hash_input.encode()).hexdigest()[:12]
+        return hashlib.md5(hash_input.encode(), usedforsecurity=False).hexdigest()[:12]  # nosec B324
     
     def save_checkpoint(self, checkpoint_id: str, chunk_num: int, 
                        processed_vins: Set[str], results: List[EnrichmentResult]):
@@ -102,7 +102,7 @@ class BatchEnrichmentManager:
         
         try:
             with open(checkpoint_file, 'rb') as f:
-                checkpoint_data = pickle.load(f)
+                checkpoint_data = pickle.load(f)  # nosec B301
             
             self.logger.info(f"Checkpoint loaded: {checkpoint_file}")
             return checkpoint_data
@@ -311,7 +311,10 @@ def main():
     config['batch']['save_frequency'] = args.save_frequency
     
     # Set up logging
-    logger = setup_logging(log_level=args.log_level)
+    logger = setup_logging(
+        log_level=args.log_level,
+        structured=config.get('logging', {}).get('structured', False)
+    )
     
     logger.info("Starting batch vehicle data enrichment")
     logger.info(f"Input: {args.input}")
@@ -322,7 +325,7 @@ def main():
     try:
         # Initialize batch manager and process
         batch_manager = BatchEnrichmentManager(config, args.checkpoint_dir)
-        results = batch_manager.process_file_in_chunks(
+        batch_manager.process_file_in_chunks(
             args.input, 
             args.output, 
             resume=args.resume
