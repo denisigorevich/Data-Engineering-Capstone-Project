@@ -23,7 +23,7 @@ import logging
 from google.cloud import dataplex_v1
 from google.cloud.dataplex_v1.types import (
     DataScan, DataQualitySpec, DataQualityRule, DataSource, Trigger,
-    CreateDataScanRequest, RunDataScanRequest, UpdateDataScanRequest
+    CreateDataScanRequest, RunDataScanRequest
 )
 
 # --- CONFIGURATION ---
@@ -222,11 +222,11 @@ def main():
         logger.info("⚠️  Note: Scheduled scans cannot be manually triggered via API")
         logger.info("   The scan will run automatically according to its schedule")
         
-        logger.info(f"✅ Data quality scan setup complete!")
+        logger.info("✅ Data quality scan setup complete!")
         logger.info(f"📊 Scan name: {scan.name}")
         logger.info(f"⏰ Schedule: {SCHEDULE_CRON} (daily at 6 AM UTC)")
         logger.info(f"📁 Results will be exported to: {RESULTS_DATASET}.{RESULTS_TABLE}")
-        logger.info(f"🔍 View scan status in Dataplex console")
+        logger.info("🔍 View scan status in Dataplex console")
         
     except Exception as e:
         logger.error(f"Error in main execution: {e}")
