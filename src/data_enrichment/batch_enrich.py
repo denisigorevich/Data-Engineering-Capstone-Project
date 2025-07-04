@@ -28,7 +28,7 @@ from dataclasses import asdict
 import pickle
 import hashlib
 
-from enrich_with_cylinders import (
+from .enrich_with_cylinders import (
     VehicleDataEnricher, 
     load_config, 
     create_default_config,

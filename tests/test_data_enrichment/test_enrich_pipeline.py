@@ -30,7 +30,7 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from enrich_with_cylinders import (
+from data_enrichment import (
     VehicleDataEnricher,
     create_default_config
 )

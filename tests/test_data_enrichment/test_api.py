@@ -15,9 +15,11 @@ import argparse
 import logging
 import pandas as pd
 
-from enrich_with_cylinders import (
+from data_enrichment import (
+    create_default_config
+)
+from data_enrichment.enrich_with_cylinders import (
     NHTSAEnrichmentClient,
-    create_default_config,
     setup_logging,
     validate_vin
 )
