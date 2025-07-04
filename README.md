@@ -1,4 +1,4 @@
-# 🚗 NHTSA Vehicle Data Enrichment Pipeline
+# NHTSA Vehicle Data Enrichment Pipeline
 
 A production-ready data enrichment pipeline that leverages the NHTSA Vehicle API to enrich vehicle datasets with missing cylinder count information and additional vehicle metadata.
 
