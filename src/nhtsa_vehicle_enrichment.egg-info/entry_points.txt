@@ -1,0 +1,3 @@
+[console_scripts]
+nhtsa-batch-enrich = src.data_enrichment.batch_enrich:main
+nhtsa-enrich = src.data_enrichment.enrich_with_cylinders:main

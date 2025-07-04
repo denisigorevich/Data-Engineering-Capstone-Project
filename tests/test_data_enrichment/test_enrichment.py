@@ -24,13 +24,15 @@ import pandas as pd
 import logging
 from pathlib import Path
 
-from enrich_with_cylinders import (
-    NHTSAEnrichmentClient,
+from data_enrichment import (
     VehicleDataEnricher,
+    create_default_config
+)
+from data_enrichment.enrich_with_cylinders import (
+    NHTSAEnrichmentClient,
     EnrichmentResult,
     validate_vin,
-    setup_logging,
-    create_default_config
+    setup_logging
 )
 
 
@@ -323,7 +325,7 @@ class TestDataProcessing:
     
     def test_load_sample_missing_data(self, enricher):
         """Test loading the sample_missing.csv test file."""
-        sample_file = Path('data_enrichment/sample_missing.csv')
+        sample_file = Path('data_enrichment/sample_data/sample_missing.csv')
         
         if sample_file.exists():
             df = enricher.load_input_data(str(sample_file))
@@ -338,7 +340,7 @@ class TestDataProcessing:
     
     def test_load_sample_enriched_data(self, enricher):
         """Test loading the sample_enriched_demo.csv test file."""
-        sample_file = Path('data_enrichment/sample_enriched_demo.csv')
+        sample_file = Path('data_enrichment/sample_data/sample_enriched_demo.csv')
         
         if sample_file.exists():
             df = enricher.load_input_data(str(sample_file))
