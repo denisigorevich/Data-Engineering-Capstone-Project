@@ -29,6 +29,7 @@ import glob
 import os
 from pathlib import Path
 from unittest.mock import patch
+import requests
 
 from data_enrichment import (
     VehicleDataEnricher,
@@ -292,61 +293,52 @@ class TestPipelineIntegration:
     @responses.activate
     def test_invalid_vin_error_handling(self, enricher, test_workspace):
         """Test that invalid VINs and API errors don't crash the pipeline."""
-        # Create test data with various error scenarios
-        test_data = pd.DataFrame({
-            'id': [1, 2, 3, 4, 5],
-            'VIN': [
-                '3GTP1VEC4EG551563',  # Valid VIN - should succeed
-                'INVALIDVIN123456',   # Invalid VIN format
-                '',                   # Empty VIN
-                '1GCSCSE06AZ500500',  # Valid format but will timeout
-                '1GCSCSE06AZ400400'   # Valid format but will return server error
-            ],
-            'cylinders': [None, None, None, None, None],
-            'make': ['gmc', 'unknown', 'unknown', 'chevrolet', 'chevrolet']
-        })
-        
-        input_file = self.create_test_csv(test_workspace, "test_errors.csv", test_data)
-        output_file = test_workspace / "test_errors_output.csv"
-        
-        # Mock API responses for different error scenarios
-        responses.add(
-            responses.GET,
-            "https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/3GTP1VEC4EG551563?format=json",
-            json={"Results": [{"EngineCylinders": "8", "Make": "GMC", "Model": "Sierra"}]},
-            status=200
-        )
-        responses.add(
-            responses.GET,
-            "https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/INVALIDVIN123456?format=json",
-            json={"Results": []},  # Empty result for invalid VIN
-            status=200
-        )
-        responses.add(
-            responses.GET,
-            "https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/1GCSCSE06AZ500500?format=json",
-            body=responses.ConnectionError("Connection timeout")
-        )
-        responses.add(
-            responses.GET,
-            "https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/1GCSCSE06AZ400400?format=json",
-            json={"error": "Internal server error"},
-            status=500
-        )
-        
-        # Capture logs to verify error handling
+        # Set up log capture
         log_capture = []
-        
         class LogCapture(logging.Handler):
             def emit(self, record):
                 log_capture.append(self.format(record))
         
         log_handler = LogCapture()
-        logger = logging.getLogger('enrich_with_cylinders')
+        log_handler.setFormatter(logging.Formatter('%(message)s'))
+        logger = logging.getLogger('data_enrichment.enrich_with_cylinders')
         logger.addHandler(log_handler)
-        logger.setLevel(logging.DEBUG)
         
         try:
+            # Create test data with various error cases
+            test_data = pd.DataFrame({
+                'VIN': [
+                    '3GTP1VEC4EG551563',  # Valid VIN
+                    'INVALIDVIN123456',    # Invalid format
+                    '1GCSCSE06AZ500500',   # Timeout error
+                    '1GCSCSE06AZ400400',   # Server error
+                    ''                     # Empty VIN
+                ]
+            })
+            
+            input_file = self.create_test_csv(test_workspace, "test_errors.csv", test_data)
+            output_file = test_workspace / "test_errors_output.csv"
+            
+            # Mock API responses for error testing
+            responses.add(
+                responses.GET,
+                "https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/3GTP1VEC4EG551563?format=json",
+                json={"Results": [{"EngineCylinders": "8", "Make": "GMC"}]},
+                status=200
+            )
+            responses.add(
+                responses.GET,
+                "https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/1GCSCSE06AZ500500?format=json",
+                body=requests.exceptions.ConnectTimeout("Connection timed out"),
+                status=408
+            )
+            responses.add(
+                responses.GET,
+                "https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/1GCSCSE06AZ400400?format=json",
+                json={"error": "Internal server error"},
+                status=500
+            )
+            
             # Run pipeline - should not crash despite errors
             results = enricher.process(str(input_file), str(output_file))
             
@@ -391,9 +383,9 @@ class TestPipelineIntegration:
             assert 'failed' in server_error_row['api_error_message'].lower()
             
             # Verify error logging occurred
-            log_messages = ' '.join(log_capture)
-            assert 'Failed to enrich VIN' in log_messages or 'timeout' in log_messages.lower()
-            
+            assert any('Failed to enrich VIN' in msg for msg in log_capture) or any('timeout' in msg.lower() for msg in log_capture), \
+                   "Expected error messages not found in logs"
+        
         finally:
             logger.removeHandler(log_handler)
         

@@ -142,6 +142,12 @@ def validate_vin(vin: str) -> bool:
 
 def setup_logging(log_level: str = "INFO", log_file: Optional[str] = None, structured: bool = False) -> logging.Logger:
     """Set up logging configuration with optional structured JSON format."""
+    logger = logging.getLogger(__name__)
+    logger.setLevel(getattr(logging, log_level.upper()))
+    
+    # Clear any existing handlers
+    logger.handlers = []
+    
     if structured:
         # Structured JSON logging for production
         import json
@@ -175,23 +181,21 @@ def setup_logging(log_level: str = "INFO", log_file: Optional[str] = None, struc
         formatter = JSONFormatter()
     else:
         # Standard logging format
-        log_format = '%(asctime)s %(levelname)s [%(name)s:%(funcName)s:%(lineno)d] %(message)s'
+        log_format = '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
         formatter = logging.Formatter(log_format, datefmt='%Y-%m-%d %H:%M:%S')
     
-    handlers = [logging.StreamHandler(sys.stdout)]
+    # Add console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    # Add file handler if specified
     if log_file:
-        handlers.append(logging.FileHandler(log_file))
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
     
-    # Configure handlers with formatter
-    for handler in handlers:
-        handler.setFormatter(formatter)
-    
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        handlers=handlers,
-        force=True  # Override any existing configuration
-    )
-    return logging.getLogger(__name__)
+    return logger
 
 
 class NHTSAEnrichmentClient:
@@ -321,6 +325,14 @@ class NHTSAEnrichmentClient:
                 api_response_time=api_response_time,
                 error_message=f"Unexpected error: {str(e)}"
             )
+
+    def enrich_vin(self, vin: str) -> EnrichmentResult:
+        """Enrich a single VIN using the NHTSA API."""
+        return self.get_vehicle_info(vin)
+
+    def enrich_vins(self, vins: List[str]) -> List[EnrichmentResult]:
+        """Enrich a list of VINs using the NHTSA API."""
+        return [self.get_vehicle_info(vin) for vin in vins]
 
 
 class VehicleDataEnricher:
